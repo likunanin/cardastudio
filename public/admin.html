@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>CADRA Admin</title>
+    <link rel="icon" type="image/png" href="./logo.png" />
+    <style>
+      body {
+        max-width: 800px;
+        margin: auto;
+        padding: 24px;
+        background: #07070a;
+        color: #efe6d8;
+        font: 14px/1.6 Montserrat, system-ui, sans-serif;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 24px;
+      }
+
+      .brand img {
+        width: min(96px, 24vw);
+        height: auto;
+      }
+
+      h1 {
+        margin: 0;
+        color: #d9b27a;
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: clamp(24px, 6vw, 36px);
+        font-weight: 300;
+        letter-spacing: 0.3em;
+      }
+
+      input,
+      select,
+      button {
+        padding: 10px;
+        border: 1px solid rgba(217, 178, 122, 0.33);
+        background: #0c0c10;
+        color: #efe6d8;
+        font: inherit;
+      }
+
+      button {
+        color: #d9b27a;
+        cursor: pointer;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin: 18px 0;
+      }
+
+      .toolbar[hidden] {
+        display: none;
+      }
+
+      #new-count {
+        margin-right: auto;
+        color: #d9b27a;
+      }
+
+      .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .status-row select {
+        min-width: 150px;
+      }
+
+      .o {
+        margin: 12px 0;
+        padding: 14px;
+        border: 1px solid rgba(217, 178, 122, 0.33);
+        overflow-wrap: anywhere;
+      }
+
+      b {
+        color: #d9b27a;
+        font-weight: 400;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="brand">
+      <img
+        src="./logo.svg"
+        alt="CADRA AI Creative Studio"
+        width="96"
+        height="68"
+      />
+      <h1>CADRA ORDERS</h1>
+    </header>
+
+    <input id="pw" type="password" placeholder="Admin password" />
+    <button id="open" type="button">Open</button>
+    <p id="message" role="status" aria-live="polite"></p>
+    <div id="toolbar" class="toolbar" hidden>
+      <strong id="new-count">New: 0</strong>
+      <label for="status-filter">Show:</label>
+      <select id="status-filter">
+        <option value="all">All statuses</option>
+        <option value="new">New</option>
+        <option value="contacted">Contacted</option>
+        <option value="in progress">In progress</option>
+        <option value="done">Done</option>
+      </select>
+      <button id="export" type="button">Export all as CSV</button>
+      <button id="test-telegram" type="button">Test Telegram</button>
+    </div>
+    <div id="orders"></div>
+
+    <script>
+      let pw = "";
+      let allOrders = [];
+      const statuses = ["new", "contacted", "in progress", "done"];
+      const message = document.getElementById("message");
+
+      async function load() {
+        pw = document.getElementById("pw").value;
+        message.textContent = "";
+
+        try {
+          const response = await fetch("/api/orders", {
+            headers: { "x-admin-password": pw },
+          });
+          if (!response.ok) {
+            document.getElementById("toolbar").hidden = true;
+            message.textContent =
+              response.status === 401 ? "Wrong password." : "Could not load orders.";
+            return;
+          }
+
+          allOrders = await response.json();
+          document.getElementById("toolbar").hidden = false;
+          renderOrders();
+        } catch (error) {
+          message.textContent = "Could not load orders: " + error.message;
+        }
+      }
+
+      function renderOrders() {
+        const container = document.getElementById("orders");
+        const filter = document.getElementById("status-filter").value;
+        const newCount = allOrders.filter((order) => order.status === "new").length;
+        document.getElementById("new-count").textContent = "New: " + newCount;
+        container.replaceChildren();
+
+        const rows =
+          filter === "all"
+            ? allOrders
+            : allOrders.filter((order) => order.status === filter);
+        if (!rows.length) {
+          container.textContent =
+            allOrders.length === 0 ? "No orders yet." : "No orders match this status.";
+          return;
+        }
+
+        rows.forEach((o) => {
+          const d = document.createElement("div");
+          d.className = "o";
+
+          [
+            ["Date", new Date(o.created).toLocaleString()],
+            ["Name", o.name],
+            ["Phone", o.phone],
+            ["Email", o.email],
+            ["Package", o.package],
+            ["Type", o.type + " · " + o.length],
+            ["Status", o.status],
+            ["Needed by", o.deadline],
+            ["Story", o.story],
+          ].forEach(([k, v]) => {
+            const b = document.createElement("b");
+            b.textContent = k + ": ";
+            d.append(b, document.createTextNode(v || "-"), document.createElement("br"));
+          });
+
+          const statusRow = document.createElement("div");
+          statusRow.className = "status-row";
+          const statusLabel = document.createElement("label");
+          statusLabel.textContent = "Change status:";
+          const statusSelect = document.createElement("select");
+          statusSelect.setAttribute("aria-label", "Status for order " + o.name);
+          statuses.forEach((status) => {
+            const option = document.createElement("option");
+            option.value = status;
+            option.textContent = status;
+            statusSelect.append(option);
+          });
+          statusSelect.value = o.status || "new";
+          statusSelect.addEventListener("change", () =>
+            updateStatus(o.id, statusSelect.value)
+          );
+          statusLabel.append(statusSelect);
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.textContent = "Delete";
+          deleteButton.addEventListener("click", () => deleteOrder(o.id));
+          statusRow.append(statusLabel, deleteButton);
+          d.append(statusRow);
+          container.append(d);
+        });
+      }
+
+      async function updateStatus(id, status) {
+        try {
+          const response = await fetch("/api/orders/" + encodeURIComponent(id), {
+            method: "PATCH",
+            headers: {
+              "x-admin-password": pw,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ status }),
+          });
+          if (!response.ok) {
+            const result = await response.json();
+            throw new Error(result.error || "Could not update order status.");
+          }
+          message.textContent = "Order status updated.";
+          await load();
+        } catch (error) {
+          message.textContent = error.message;
+        }
+      }
+
+      async function deleteOrder(id) {
+        try {
+          const response = await fetch("/api/orders/" + encodeURIComponent(id), {
+            method: "DELETE",
+            headers: { "x-admin-password": pw },
+          });
+          if (!response.ok) {
+            throw new Error("Could not delete order.");
+          }
+          message.textContent = "Order deleted.";
+          await load();
+        } catch (error) {
+          message.textContent = error.message;
+        }
+      }
+
+      async function testTelegram() {
+        message.textContent = "Sending Telegram test…";
+        try {
+          const response = await fetch("/api/test-telegram", {
+            method: "POST",
+            headers: { "x-admin-password": pw },
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.error || "Telegram test failed.");
+          }
+          message.textContent = "Telegram test alert sent.";
+        } catch (error) {
+          message.textContent = error.message;
+        }
+      }
+
+      function exportCsv() {
+        const columns = [
+          ["Date", "created"],
+          ["Name", "name"],
+          ["Phone", "phone"],
+          ["Email", "email"],
+          ["Package", "package"],
+          ["Type", "type"],
+          ["Length", "length"],
+          ["Status", "status"],
+          ["Needed by", "deadline"],
+          ["Story", "story"],
+        ];
+        const escapeCsv = (value) => {
+          const text = String(value ?? "");
+          const safeText = /^[=+\-@\t\r]/.test(text) ? "'" + text : text;
+          return '"' + safeText.replaceAll('"', '""') + '"';
+        };
+        const csv = [
+          columns.map(([label]) => escapeCsv(label)).join(","),
+          ...allOrders.map((order) =>
+            columns
+              .map(([, key]) =>
+                escapeCsv(key === "created" ? new Date(order.created).toISOString() : order[key])
+              )
+              .join(",")
+          ),
+        ].join("\r\n");
+        const url = URL.createObjectURL(
+          new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "cadra-orders.csv";
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      document.getElementById("open").addEventListener("click", load);
+      document.getElementById("pw").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") load();
+      });
+      document
+        .getElementById("status-filter")
+        .addEventListener("change", renderOrders);
+      document.getElementById("export").addEventListener("click", exportCsv);
+      document
+        .getElementById("test-telegram")
+        .addEventListener("click", testTelegram);
+    </script>
+  </body>
+</html>

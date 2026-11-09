@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 240" fill="none">
+  <defs>
+    <linearGradient id="glass" x1="58" y1="34" x2="275" y2="214" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3E2C7" stop-opacity=".92"/>
+      <stop offset=".48" stop-color="#D9B27A" stop-opacity=".78"/>
+      <stop offset="1" stop-color="#8C9EAA" stop-opacity=".72"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="74" y1="52" x2="261" y2="195" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8EC"/>
+      <stop offset=".55" stop-color="#E5C99E"/>
+      <stop offset="1" stop-color="#A7B7C0"/>
+    </linearGradient>
+    <filter id="glow" x="18" y="6" width="304" height="228" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+  <path
+    d="M244 48C215 28 178 19 141 24 83 32 43 72 37 119c-7 54 35 96 87 101 44 5 88-10 116-38"
+    stroke="url(#glass)"
+    stroke-linecap="round"
+    stroke-width="18"
+    opacity=".34"
+    filter="url(#glow)"
+  />
+  <path
+    d="M244 48C215 28 178 19 141 24 83 32 43 72 37 119c-7 54 35 96 87 101 44 5 88-10 116-38"
+    stroke="url(#glass)"
+    stroke-linecap="round"
+    stroke-width="13"
+  />
+  <path
+    d="M239 54C210 37 176 29 143 34 92 41 57 76 51 119c-6 46 31 82 75 87 39 5 78-8 103-32"
+    stroke="url(#edge)"
+    stroke-linecap="round"
+    stroke-width="1.5"
+    opacity=".82"
+  />
+  <path
+    d="M236 47 258 39 247 61M238 181 260 190 242 205"
+    stroke="url(#edge)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="1.5"
+    opacity=".8"
+  />
+</svg>
